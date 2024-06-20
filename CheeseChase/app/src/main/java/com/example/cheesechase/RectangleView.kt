@@ -1,6 +1,7 @@
 package com.example.cheesechase
 
 import android.animation.ValueAnimator
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -14,7 +15,9 @@ import android.view.animation.LinearInterpolator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.graphics.Color
+import androidx.activity.ComponentDialog
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import java.security.KeyStore.TrustedCertificateEntry
 import kotlin.math.abs
@@ -25,9 +28,9 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     var stateCaught = 0
     var stateStart=true
     private val paint = Paint()
-    private var ylane1 = 0f
-    private var ylane3 = 0f
-    private var ylane2 = 0f
+    var ylane1 = 0f
+    var ylane3 = 0f
+    var ylane2 = 0f
 
     private var yBoost1Lane1 = -height.toFloat()
     private var yBoost2Lane3= -height.toFloat()
@@ -41,11 +44,9 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     private var trackChangeSound: MediaPlayer? = null
     private var gameOverSound: MediaPlayer? = null
     private var isSoundPlayed = false
-    var gameOver = false
+    var gameOver by mutableStateOf(false)
     private var speed =25000
     private var k:Int = 0
-    private var kin=0
-    private var kfin=0
     init {
         hitSound = MediaPlayer.create(context, R.raw.hit)
         trackChangeSound = MediaPlayer.create(context, R.raw.trackchange)
@@ -55,6 +56,9 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     }
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        movement()
+    }
+    private fun movement(){
         animator = ValueAnimator.ofFloat(-(height * 8 + 400).toFloat(), (height * 4.9).toFloat())
         animator.interpolator = LinearInterpolator()
         animator.addUpdateListener { animation ->
@@ -188,12 +192,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 hitCount += 1
             }
         }
-        if(hitCount == 0) k=0
-        if(hitCount in 1..4){
-            k=1
-        }
-        if(hitCount in 4..7){k=2}
-        when (k) {
+        when (hitCount) {
             0 -> yTomPosition = height.toFloat()
             1 -> {
                 yTomPosition = 2000f
@@ -206,7 +205,10 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 if (isSoundPlayed) {
                     gameOverSound?.start()
                     isSoundPlayed = false
-                    gameOver = true }
+                    gameOver = true
+                    showDialog()
+                }
+                
             }
         }
         canvas.drawBitmap(bitmapDanger, xLane1, ylane1 - height * 1.5.toFloat(), paint)
@@ -273,5 +275,23 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
             }
         }
         return super.onTouchEvent(event)
+    }
+    private fun showDialog() {
+        val builder = AlertDialog.Builder(context)
+        builder.setTitle("GAME OVER")
+        builder.setMessage("SCORE: $stateCaught")
+        builder.setPositiveButton("play again") { dialog, _ ->
+            gameOver=false
+            ylane1 = 0f
+            ylane2 = 0f
+            ylane3 = 0f
+            yTomPosition = height.toFloat()
+            yPosition = 1700f
+            hitCount = 0
+            stateCaught = 0
+            movement()
+            dialog.dismiss()
+        }
+        builder.show()
     }
 }
