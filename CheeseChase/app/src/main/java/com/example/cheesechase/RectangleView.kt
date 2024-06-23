@@ -15,26 +15,23 @@ import android.view.animation.LinearInterpolator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.graphics.Color
-import androidx.activity.ComponentDialog
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
-import java.security.KeyStore.TrustedCertificateEntry
 import kotlin.math.abs
 import kotlin.random.Random
 
 class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,attrs) {
     private var hitCount by mutableIntStateOf(0)
     var stateCaught = 0
-    var stateStart=true
+    var final=0
     private val paint = Paint()
     var ylane1 = 0f
     var ylane3 = 0f
     var ylane2 = 0f
-
+    private var highestScore = 0
     private var yBoost1Lane1 = -height.toFloat()
     private var yBoost2Lane3= -height.toFloat()
-
     private lateinit var animator: ValueAnimator
     private var state: Int = 2
     private var yPosition = 1700f
@@ -45,15 +42,21 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     private var gameOverSound: MediaPlayer? = null
     private var isSoundPlayed = false
     var gameOver by mutableStateOf(false)
-    private var speed =25000
-    private var k:Int = 0
     init {
         hitSound = MediaPlayer.create(context, R.raw.hit)
         trackChangeSound = MediaPlayer.create(context, R.raw.trackchange)
         gameOverSound = MediaPlayer.create(context, R.raw.gameover)
         setOnClickListener {}
-
     }
+    val sharedPref = context.getSharedPreferences("CheeseChasePrefs", Context.MODE_PRIVATE)
+    val editor = sharedPref.edit()
+    fun saveHighScore(valueOfHigScore:Int){
+        editor.apply {
+            putInt("Score",valueOfHigScore)
+            apply()
+        }
+    }
+    private fun getHighestScore(): Int {return sharedPref.getInt("Score", 0) }
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         movement()
@@ -70,18 +73,13 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 if (ylane1 >= height.toFloat()) {
                     ylane1 = -(height * 8 + 400).toFloat()
                 }
-                if(stateCaught>1000) {
-                    animator.pause()
-                    animator.duration=20000.toLong()
-                    animator.resume()
-                }
                 if(stateCaught>2500){
                     animator.pause()
                     animator.duration=15000
                     animator.resume()
                 }
                 if(stateCaught>5000){
-                    animator.duration=5000
+                    animator.duration=10000
                 }
                 invalidate()
             }
@@ -168,7 +166,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
             ylane3 + height * 5.4.toFloat(),
             ylane3 + height * 6.toFloat()
         )
-        if(stateCaught in 0..1000){
+        if(stateCaught in 0..2500){
             if ((state == 1 && list1.any { abs(it - yPosition) < 25}) ||
                 (state == 2 && list2.any { abs(it - yPosition) < 25 }) ||
                 (state == 3 && list3.any { abs(it - yPosition) < 25 })
@@ -176,23 +174,20 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 hitCount += 1
             }
         }
-        if(stateCaught in 1000..5000){
-            if ((state == 1 && list1.any { abs(it - yPosition) <  55 }) ||
-                (state == 2 && list2.any { abs(it - yPosition) < 55 }) ||
-                (state == 3 && list3.any { abs(it - yPosition) < 55 })
-            ) {
-                hitCount += 1
-            }
+
+        if(stateCaught in 2500..5000){
+            if ((state == 1 && list1.any { abs(it - yPosition) <  75 }) ||
+                (state == 2 && list2.any { abs(it - yPosition) < 75 }) ||
+                (state == 3 && list3.any { abs(it - yPosition) < 75 })
+            ) { hitCount += 1 }
         }
         if(stateCaught>=5000){
             if ((state == 1 && list1.any { abs(it - yPosition) < 100 }) ||
                 (state == 2 && list2.any { abs(it - yPosition) < 100 }) ||
                 (state == 3 && list3.any { abs(it - yPosition) < 100 })
-            ) {
-                hitCount += 1
-            }
+            ) { hitCount += 1 }
         }
-        when (hitCount) {
+        when (hitCount/2) {
             0 -> yTomPosition = height.toFloat()
             1 -> {
                 yTomPosition = 2000f
@@ -206,9 +201,15 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                     gameOverSound?.start()
                     isSoundPlayed = false
                     gameOver = true
+                    if(stateCaught>=getHighestScore()){
+                        highestScore=stateCaught
+                        saveHighScore(highestScore)
+                    }
+                    else{
+                        highestScore=getHighestScore()
+                    }
                     showDialog()
                 }
-                
             }
         }
         canvas.drawBitmap(bitmapDanger, xLane1, ylane1 - height * 1.5.toFloat(), paint)
@@ -233,7 +234,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
         canvas.drawBitmap(bitmapSnake, xLane3, ylane3 + height * 4.toFloat(), paint)
         canvas.drawBitmap(bitmapSnake, xLane3, ylane3 + height * 5.4.toFloat(), paint)
         canvas.drawBitmap(bitmapTrap, xLane3, ylane3 + height * 6.toFloat(), paint)
-        //for powerups on lanes
+        //for powerUps on lanes
         canvas.drawBitmap(bitSmile,xLane1,yBoost1Lane1,paint)
         canvas.drawBitmap(bitShield,xLane3,yBoost2Lane3,paint)
         //condition for placing the obstacle
@@ -279,7 +280,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     private fun showDialog() {
         val builder = AlertDialog.Builder(context)
         builder.setTitle("GAME OVER")
-        builder.setMessage("SCORE: $stateCaught")
+        builder.setMessage("SCORE: $stateCaught \nHIGH SCORE: $highestScore")
         builder.setPositiveButton("play again") { dialog, _ ->
             gameOver=false
             ylane1 = 0f
