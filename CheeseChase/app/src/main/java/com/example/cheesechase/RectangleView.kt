@@ -15,16 +15,19 @@ import android.view.animation.LinearInterpolator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import android.graphics.Color
+import android.telecom.Call
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
+import okhttp3.Response
 import kotlin.math.abs
 import kotlin.random.Random
+
 
 class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,attrs) {
     private var hitCount by mutableIntStateOf(0)
     var stateCaught = 0
-    var final=0
+    var maximum=2
     private val paint = Paint()
     var ylane1 = 0f
     var ylane3 = 0f
@@ -42,11 +45,16 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
     private var gameOverSound: MediaPlayer? = null
     private var isSoundPlayed = false
     var gameOver by mutableStateOf(false)
+    val mainViewModel=MainViewModel()
     init {
         hitSound = MediaPlayer.create(context, R.raw.hit)
         trackChangeSound = MediaPlayer.create(context, R.raw.trackchange)
         gameOverSound = MediaPlayer.create(context, R.raw.gameover)
         setOnClickListener {}
+    }
+    fun updateMaximum(max: Int) {
+        maximum = max
+        invalidate()  // Redraw the view
     }
     val sharedPref = context.getSharedPreferences("CheeseChasePrefs", Context.MODE_PRIVATE)
     val editor = sharedPref.edit()
@@ -83,7 +91,6 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 }
                 invalidate()
             }
-
         }
         animator.duration=25000
         animator.repeatCount = ValueAnimator.INFINITE
@@ -176,9 +183,9 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
         }
 
         if(stateCaught in 2500..5000){
-            if ((state == 1 && list1.any { abs(it - yPosition) <  75 }) ||
-                (state == 2 && list2.any { abs(it - yPosition) < 75 }) ||
-                (state == 3 && list3.any { abs(it - yPosition) < 75 })
+            if ((state == 1 && list1.any { abs(it - yPosition) <  55 }) ||
+                (state == 2 && list2.any { abs(it - yPosition) < 55 }) ||
+                (state == 3 && list3.any { abs(it - yPosition) < 55 })
             ) { hitCount += 1 }
         }
         if(stateCaught>=5000){
@@ -187,15 +194,14 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                 (state == 3 && list3.any { abs(it - yPosition) < 100 })
             ) { hitCount += 1 }
         }
-        when (hitCount/2) {
-            0 -> yTomPosition = height.toFloat()
-            1 -> {
+        when (hitCount/2.5.toInt()) {
+            maximum-1-> {
                 yTomPosition = 2000f
                 if (!isSoundPlayed) {
                     hitSound?.start()
                     isSoundPlayed = true }
             }
-            2 -> {
+            maximum -> {
                 yTomPosition = yPosition
                 if (isSoundPlayed) {
                     gameOverSound?.start()
@@ -211,6 +217,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
                     showDialog()
                 }
             }
+            else->{yTomPosition = height.toFloat()}
         }
         canvas.drawBitmap(bitmapDanger, xLane1, ylane1 - height * 1.5.toFloat(), paint)
         canvas.drawBitmap(bitmapDanger, xLane1, ylane1 - height * 2.3.toFloat(), paint)
@@ -253,6 +260,7 @@ class RectangleView(context: Context,attrs: AttributeSet?=null) : View(context,a
         canvas.drawText("$stateCaught",800f,300f,paint)
         canvas.drawText("" +
                 "$hitCount",800f,400f,paint)
+        canvas.drawText("Max no. of hits: $maximum",700f,500f,paint)
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) {
